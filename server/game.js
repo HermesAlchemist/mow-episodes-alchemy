@@ -13,10 +13,12 @@ class GameState {
       }));
   }
 
-  addPlayer(socketId) {
+  addPlayer(socketId, playerData = {}) {
     this.players.set(socketId, {
-      x: 400,
-      y: 300,
+      x: playerData.x || 400,
+      y: playerData.y || 300,
+      name: playerData.name || "Player",
+      spriteId: playerData.spriteId || "player1",
       animation: "idleDown",
       flipX: false,
     });
@@ -108,6 +110,35 @@ class GameState {
       slime.x += slime.velocityX * (1 / 60);
       slime.y += slime.velocityY * (1 / 60);
     });
+  }
+
+  updatePlayerInput(socketId, input) {
+    const player = this.players.get(socketId);
+    if (!player) return;
+
+    // Update animation based on movement (without sprite prefix)
+    if (input.left) {
+      player.animation = "walkRight";
+      player.flipX = true;
+    } else if (input.right) {
+      player.animation = "walkRight";
+      player.flipX = false;
+    } else if (input.up) {
+      player.animation = "walkUp";
+    } else if (input.down) {
+      player.animation = "walkDown";
+    } else {
+      // Set idle animations based on last movement
+      if (player.animation === "walkRight") player.animation = "idleRight";
+      else if (player.animation === "walkUp") player.animation = "idleUp";
+      else if (player.animation === "walkDown") player.animation = "idleDown";
+    }
+
+    // Update position
+    if (input.left) player.x -= 5;
+    if (input.right) player.x += 5;
+    if (input.up) player.y -= 5;
+    if (input.down) player.y += 5;
   }
 }
 

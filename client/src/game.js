@@ -21,15 +21,122 @@ const config = {
   },
 };
 
-const game = new Phaser.Game(config);
+let playerName = null;
+
+function startGame() {
+  const game = new Phaser.Game(config);
+}
+
+// Add sprite options at the top of your file
+const SPRITE_OPTIONS = [
+  { id: "player1", label: "Character 1" },
+  { id: "player2", label: "Character 2" },
+];
+
+function createNameInput() {
+  const nameForm = document.createElement("div");
+  nameForm.style.position = "absolute";
+  nameForm.style.top = "50%";
+  nameForm.style.left = "50%";
+  nameForm.style.transform = "translate(-50%, -50%)";
+  nameForm.style.textAlign = "center";
+  nameForm.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+  nameForm.style.padding = "20px";
+  nameForm.style.borderRadius = "10px";
+
+  // Name input
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Enter your name";
+  input.style.padding = "10px";
+  input.style.marginBottom = "20px";
+  input.style.display = "block";
+  input.style.width = "200px";
+
+  // Sprite selection
+  const spriteDiv = document.createElement("div");
+  spriteDiv.style.marginBottom = "20px";
+
+  SPRITE_OPTIONS.forEach((sprite, index) => {
+    const container = document.createElement("div");
+    container.style.marginBottom = "10px";
+    container.style.display = "flex";
+    container.style.alignItems = "center";
+    container.style.gap = "10px";
+
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "spriteChoice";
+    radio.value = sprite.id;
+    radio.id = sprite.id;
+    radio.checked = index === 0; // First option selected by default
+
+    const label = document.createElement("label");
+    label.htmlFor = sprite.id;
+    label.textContent = sprite.label;
+    label.style.color = "white";
+
+    // Create a container for the sprite preview
+    const previewContainer = document.createElement("div");
+    previewContainer.style.width = "48px";
+    previewContainer.style.height = "48px";
+    previewContainer.style.overflow = "hidden";
+    previewContainer.style.position = "relative";
+
+    const preview = document.createElement("img");
+    preview.src = `assets/${sprite.id}.png`;
+    preview.style.position = "absolute";
+    preview.style.left = "0";
+    preview.style.top = "0";
+    preview.style.width = "288px"; // Full spritesheet width (48 * 6)
+    preview.style.height = "384px"; // Full spritesheet height
+    preview.style.imageRendering = "pixelated";
+    preview.style.clipPath = "inset(0 240px 336px 0)"; // Clip to show only first frame
+    preview.style.transform = "scale(1)"; // Adjust if needed
+
+    previewContainer.appendChild(preview);
+
+    container.appendChild(radio);
+    container.appendChild(previewContainer);
+    container.appendChild(label);
+    spriteDiv.appendChild(container);
+  });
+
+  const button = document.createElement("button");
+  button.textContent = "Join Game";
+  button.style.padding = "10px 20px";
+
+  nameForm.appendChild(input);
+  nameForm.appendChild(spriteDiv);
+  nameForm.appendChild(button);
+  document.body.appendChild(nameForm);
+
+  button.onclick = () => {
+    const selectedSprite = document.querySelector(
+      'input[name="spriteChoice"]:checked'
+    ).value;
+    playerName = input.value.trim() || "Player";
+    document.body.removeChild(nameForm);
+    startGame();
+    // Emit both name and sprite choice
+    socket.emit("playerData", { name: playerName, spriteId: selectedSprite });
+  };
+}
+
+createNameInput();
 
 function preload() {
-  this.load.spritesheet("player", "player.png", {
+  // Load both sprite sheets
+  this.load.spritesheet("player1", "assets/player1.png", {
     frameWidth: 48,
     frameHeight: 48,
   });
-  this.load.spritesheet("slime", "slime.png", {
-    frameWidth: 32, // Assuming each frame is 32x32, adjust as needed
+  this.load.spritesheet("player2", "assets/player2.png", {
+    frameWidth: 48,
+    frameHeight: 48,
+  });
+  this.load.spritesheet("slime", "assets/slime.png", {
+    frameWidth: 32,
     frameHeight: 32,
   });
 }
@@ -38,75 +145,78 @@ function create() {
   this.players = new Map();
   this.cursors = this.input.keyboard.createCursorKeys();
 
-  // Create animations
-  this.anims.create({
-    key: "idleDown",
-    frames: this.anims.generateFrameNumbers("player", { start: 0, end: 5 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+  // Create animations for both player sprites
+  ["player1", "player2"].forEach((spriteId) => {
+    // Create animations for this sprite
+    this.anims.create({
+      key: `${spriteId}_idleDown`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 0, end: 5 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "idleRight",
-    frames: this.anims.generateFrameNumbers("player", { start: 6, end: 11 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+    this.anims.create({
+      key: `${spriteId}_idleRight`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 6, end: 11 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "idleUp",
-    frames: this.anims.generateFrameNumbers("player", { start: 12, end: 17 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+    this.anims.create({
+      key: `${spriteId}_idleUp`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 12, end: 17 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "walkDown",
-    frames: this.anims.generateFrameNumbers("player", { start: 18, end: 23 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+    this.anims.create({
+      key: `${spriteId}_walkDown`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 18, end: 23 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "walkRight",
-    frames: this.anims.generateFrameNumbers("player", { start: 24, end: 29 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+    this.anims.create({
+      key: `${spriteId}_walkRight`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 24, end: 29 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "walkUp",
-    frames: this.anims.generateFrameNumbers("player", { start: 30, end: 35 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+    this.anims.create({
+      key: `${spriteId}_walkUp`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 30, end: 35 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "attackDown",
-    frames: this.anims.generateFrameNumbers("player", { start: 36, end: 39 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+    this.anims.create({
+      key: `${spriteId}_attackDown`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 36, end: 39 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "attackRight",
-    frames: this.anims.generateFrameNumbers("player", { start: 42, end: 45 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+    this.anims.create({
+      key: `${spriteId}_attackRight`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 42, end: 45 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "attackUp",
-    frames: this.anims.generateFrameNumbers("player", { start: 48, end: 51 }),
-    frameRate: 10,
-    repeat: -1,
-  });
+    this.anims.create({
+      key: `${spriteId}_attackUp`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 48, end: 51 }),
+      frameRate: 10,
+      repeat: -1,
+    });
 
-  this.anims.create({
-    key: "die",
-    frames: this.anims.generateFrameNumbers("player", { start: 54, end: 56 }),
-    frameRate: 10,
-    repeat: 0,
+    this.anims.create({
+      key: `${spriteId}_die`,
+      frames: this.anims.generateFrameNumbers(spriteId, { start: 54, end: 56 }),
+      frameRate: 10,
+      repeat: 0,
+    });
   });
 
   // Create slime animations
@@ -216,17 +326,42 @@ function create() {
       let player = this.players.get(playerData.id);
 
       if (!player) {
-        // Create new player sprite
-        player = this.physics.add.sprite(playerData.x, playerData.y, "player");
+        player = this.physics.add.sprite(
+          playerData.x,
+          playerData.y,
+          playerData.spriteId
+        );
         player.setScale(1.5);
+
+        const displayName = playerData.name || "Player";
+        const playerText = this.add.text(
+          playerData.x,
+          playerData.y - 40,
+          displayName,
+          {
+            fontSize: "16px",
+            fill: "#ffffff",
+            backgroundColor: "#000000",
+            padding: { x: 4, y: 4 },
+          }
+        );
+        playerText.setOrigin(0.5);
+        player.playerText = playerText;
+
         this.players.set(playerData.id, player);
       }
 
       // Update player position and animation
       player.x = playerData.x;
       player.y = playerData.y;
+      player.playerText.x = playerData.x;
+      player.playerText.y = playerData.y - 40;
+
       if (playerData.animation) {
-        player.anims.play(playerData.animation, true);
+        player.anims.play(
+          `${playerData.spriteId}_${playerData.animation}`,
+          true
+        );
         player.flipX = playerData.flipX;
       }
     });
@@ -235,7 +370,9 @@ function create() {
     const currentPlayerIds = gameState.players.map((p) => p.id);
     Array.from(this.players.keys()).forEach((playerId) => {
       if (!currentPlayerIds.includes(playerId)) {
-        this.players.get(playerId).destroy();
+        const player = this.players.get(playerId);
+        player.playerText.destroy(); // Destroy the text object
+        player.destroy();
         this.players.delete(playerId);
       }
     });
