@@ -1,3 +1,5 @@
+const Level = require('./level');
+
 class GameState {
   constructor() {
     this.players = new Map(); // Store players by socket ID
@@ -11,6 +13,8 @@ class GameState {
         velocityX: 0,
         velocityY: 0,
       }));
+    
+    this.level = new Level();
   }
 
   addPlayer(socketId, playerData = {}) {
@@ -35,23 +39,40 @@ class GameState {
     const speed = 160;
     const prevX = player.x;
     const prevY = player.y;
+    let newX = prevX;
+    let newY = prevY;
 
-    // Handle player movement
+    // Calculate new position
     if (inputState.left) {
-      player.x -= speed * (1 / 60);
+      newX = prevX - speed * (1 / 60);
+    } else if (inputState.right) {
+      newX = prevX + speed * (1 / 60);
+    }
+
+    if (inputState.up) {
+      newY = prevY - speed * (1 / 60);
+    } else if (inputState.down) {
+      newY = prevY + speed * (1 / 60);
+    }
+
+    // Check collision and update position if no collision
+    if (!this.level.isColliding(newX, newY)) {
+      player.x = newX;
+      player.y = newY;
+    }
+
+    // Update animations (keep existing animation code)
+    if (inputState.left) {
       player.animation = "walkRight";
       player.flipX = true;
     } else if (inputState.right) {
-      player.x += speed * (1 / 60);
       player.animation = "walkRight";
       player.flipX = false;
     }
 
     if (inputState.up) {
-      player.y -= speed * (1 / 60);
       player.animation = "walkUp";
     } else if (inputState.down) {
-      player.y += speed * (1 / 60);
       player.animation = "walkDown";
     }
 
